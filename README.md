@@ -4,6 +4,8 @@ A cross-platform desktop JSON editor built with Tauri, Vue 3, and [vanilla-jsone
 
 ![JsonEditor](src/assets/json-editor.svg)
 
+**Repository**: https://github.com/yaoxinghuo/json-editor
+
 ## Features
 
 - **Dual-pane editor** — Side-by-side JSON editing with a draggable split divider and copy buttons (Left → Right / Right → Left)
@@ -93,6 +95,12 @@ JsonEditor/
 ├── package.json
 └── vite.config.ts
 ```
+
+## About
+
+This project is open source and available on GitHub: https://github.com/yaoxinghuo/json-editor
+
+Issues and pull requests are welcome.
 
 ## License
 
