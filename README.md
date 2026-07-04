@@ -2,7 +2,7 @@
 
 A cross-platform desktop JSON editor built with Tauri, Vue 3, and [vanilla-jsoneditor](https://github.com/josdejong/jsoneditor). Features a dual-pane layout with independent editing modes, dark/light theme, and persistent state.
 
-![JsonEditor](src/assets/json-editor.svg)
+<img width="2000" height="1200" alt="image" src="https://github.com/user-attachments/assets/ccce9752-2fe1-46e7-9ce8-7c62bec54391" />
 
 **Repository**: https://github.com/yaoxinghuo/json-editor
 
