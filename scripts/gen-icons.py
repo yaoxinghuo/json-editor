@@ -68,15 +68,28 @@ def gen_pngs(src):
 
 
 def gen_icns(src):
-    print("Generating ICNS...")
+    print("Generating ICNS (with 10% transparent padding for macOS)...")
     iconset = os.path.join(ICONS_DIR, "tmp.iconset")
     os.makedirs(iconset, exist_ok=True)
+
+    # macOS icons require ~10% transparent padding (content at 80%)
+    img = Image.open(src).convert("RGBA")
+    padded = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    content_size = int(img.width * 0.8)
+    resized = img.resize((content_size, content_size), Image.LANCZOS)
+    offset = (img.width - content_size) // 2
+    padded.paste(resized, (offset, offset))
+
+    padded_src = os.path.join(iconset, "_padded_src.png")
+    padded.save(padded_src)
+
     for name, base, retina in ICNS_SIZES:
-        run_sips(src, base, os.path.join(iconset, f"{name}.png"))
-        run_sips(src, retina, os.path.join(iconset, f"{name}@2x.png"))
+        run_sips(padded_src, base, os.path.join(iconset, f"{name}.png"))
+        run_sips(padded_src, retina, os.path.join(iconset, f"{name}@2x.png"))
+
     icns_path = os.path.join(ICONS_DIR, "icon.icns")
     subprocess.run(["iconutil", "-c", "icns", iconset, "-o", icns_path], check=True)
-    os.rmdir(iconset) if not os.listdir(iconset) else None
+
     # clean up
     for f in os.listdir(iconset):
         os.remove(os.path.join(iconset, f))

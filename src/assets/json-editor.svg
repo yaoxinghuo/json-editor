@@ -1,6 +1,13 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Dark background with rounded corners -->
-  <rect width="1024" height="1024" rx="220" fill="#1a2333"/>
+  <defs>
+    <linearGradient id="bgGradient" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#242f45"/>
+      <stop offset="1" stop-color="#141c2b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark background with rounded corners + subtle border for dock contrast -->
+  <rect x="5" y="5" width="1014" height="1014" rx="217" fill="url(#bgGradient)" stroke="rgba(255,255,255,0.18)" stroke-width="10"/>
 
   <!-- Left blue brace { -->
   <path d="M 300 260 C 210 260 210 300 210 340 C 210 390 210 460 150 520 C 210 580 210 650 210 700 C 210 740 210 780 300 780"

@@ -187,7 +187,7 @@ onUnmounted(() => {
           <div class="about-content">
             <img class="about-logo" src="../assets/json-editor.svg" alt="JsonEditor" />
             <div class="about-text">
-              <div class="about-title">JsonEditor v0.1.0</div>
+              <div class="about-title">JsonEditor v0.1.1</div>
               <a class="about-link" :href="PROJECT_URL" target="_blank" rel="noopener">{{ PROJECT_URL }}</a>
             </div>
           </div>
