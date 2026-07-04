@@ -1,0 +1,19 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background with rounded corners -->
+  <rect width="1024" height="1024" rx="220" fill="#1a2333"/>
+  
+  <!-- Left blue brace { -->
+  <path d="M 280 280 Q 180 280 180 380 Q 180 520 240 520 Q 180 520 180 660 Q 180 760 280 760 L 280 720 Q 220 720 220 660 Q 220 520 280 520 Q 220 520 220 380 Q 220 320 280 320 Z" fill="#4CC9F0" stroke="#3BB5E0" stroke-width="40"/>
+  
+  <!-- Right green brace } -->
+  <path d="M 744 280 Q 844 280 844 380 Q 844 520 784 520 Q 844 520 844 660 Q 844 760 744 760 L 744 720 Q 804 720 804 660 Q 804 520 744 520 Q 804 520 804 380 Q 804 320 744 320 Z" fill="#22C55E" stroke="#1EAE4F" stroke-width="40"/>
+  
+  <!-- Orange dot -->
+  <circle cx="512" cy="380" r="48" fill="#FF9500"/>
+  
+  <!-- Purple dot -->
+  <circle cx="512" cy="512" r="48" fill="#C026D3"/>
+  
+  <!-- Red dot -->
+  <circle cx="512" cy="644" r="48" fill="#EF4444"/>
+</svg>
