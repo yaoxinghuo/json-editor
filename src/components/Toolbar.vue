@@ -25,6 +25,9 @@ const emit = defineEmits<{
 }>()
 
 const showOpenMenu = ref(false)
+const showAbout = ref(false)
+
+const PROJECT_URL = 'https://github.com/yaoxinghuo/json-editor'
 
 function toggleOpenMenu() {
   showOpenMenu.value = !showOpenMenu.value
@@ -38,6 +41,9 @@ function handleDocumentClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (!target.closest('.open-dropdown')) {
     closeOpenMenu()
+  }
+  if (!target.closest('.about-dropdown')) {
+    showAbout.value = false
   }
 }
 
@@ -168,6 +174,25 @@ onUnmounted(() => {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       </button>
+      <div class="divider" />
+      <div class="about-dropdown">
+        <button class="btn btn-icon" title="About" @click="showAbout = !showAbout">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="12" cy="7.6" r="1.05" fill="currentColor"/>
+            <rect x="11" y="10.5" width="2" height="6.6" rx="0.6" fill="currentColor"/>
+          </svg>
+        </button>
+        <div v-if="showAbout" class="dropdown-menu about-menu" @click.stop>
+          <div class="about-content">
+            <img class="about-logo" src="../assets/json-editor.svg" alt="JsonEditor" />
+            <div class="about-text">
+              <div class="about-title">JsonEditor v0.1.0</div>
+              <a class="about-link" :href="PROJECT_URL" target="_blank" rel="noopener">{{ PROJECT_URL }}</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -309,5 +334,53 @@ onUnmounted(() => {
 
 .dropdown-item:hover {
   background: var(--btn-hover-bg, #f3f4f6);
+}
+
+.about-dropdown {
+  position: relative;
+}
+
+.about-menu {
+  right: 0;
+  left: auto;
+  min-width: 280px;
+  padding: 12px;
+}
+
+.about-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.about-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.about-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.about-link {
+  font-size: 12px;
+  color: var(--accent-color, #3b82f6);
+  text-decoration: none;
+  word-break: break-all;
+  transition: opacity 0.15s;
+}
+
+.about-link:hover {
+  opacity: 0.8;
 }
 </style>
