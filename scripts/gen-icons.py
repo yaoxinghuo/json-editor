@@ -75,7 +75,7 @@ def gen_icns(src):
     # macOS icons require ~10% transparent padding (content at 80%)
     img = Image.open(src).convert("RGBA")
     padded = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    content_size = int(img.width * 0.8)
+    content_size = int(img.width * 0.85)
     resized = img.resize((content_size, content_size), Image.LANCZOS)
     offset = (img.width - content_size) // 2
     padded.paste(resized, (offset, offset))
