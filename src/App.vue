@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { readTextFile } from '@tauri-apps/plugin-fs'
@@ -70,6 +70,9 @@ async function loadFileFromUrl(url: string) {
     const content = await readTextFile(path)
     leftContent.value = content
     fileName.value = path.split('/').pop() || 'untitled.json'
+    // 确保 editor 已初始化并同步内容
+    await nextTick()
+    leftEditorRef.value?.setText(content)
   } catch (e) {
     console.error('Failed to open associated file:', e)
   }
@@ -77,6 +80,8 @@ async function loadFileFromUrl(url: string) {
 
 async function setupFileAssociation() {
   try {
+    // 等待子组件 editor 初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100))
     // 冷启动：文件 URL 可能已在 Rust 状态中
     const initialUrls = await invoke<string[]>('opened_urls')
     if (initialUrls.length > 0) {
