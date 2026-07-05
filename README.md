@@ -96,6 +96,11 @@ JsonEditor/
 │   ├── src/lib.rs               # Tauri plugin registration
 │   ├── Cargo.toml               # Rust dependencies
 │   └── tauri.conf.json          # Tauri config (window, bundle, etc.)
+├── scripts/
+│   └── gen-icons.py             # Icon generation script (PNG → all formats)
+├── .github/
+│   └── workflows/
+│       └── release.yml          # CI/CD for cross-platform builds
 ├── index.html
 ├── package.json
 └── vite.config.ts
