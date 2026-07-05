@@ -1,12 +1,19 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use tauri::Manager;
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder};
 
-struct OpenedUrls(Mutex<Vec<tauri::Url>>);
+// 全局静态变量存储 opened URLs
+// macOS 上 RunEvent::Opened 在 managed state 和 setup 之前触发，
+// 所以不能用 managed state，必须用全局静态变量
+static OPENED_URLS: OnceLock<Mutex<Vec<tauri::Url>>> = OnceLock::new();
+
+fn opened_urls_lock() -> &'static Mutex<Vec<tauri::Url>> {
+    OPENED_URLS.get_or_init(|| Mutex::new(vec![]))
+}
 
 #[tauri::command]
-fn opened_urls(app: tauri::AppHandle) -> Vec<tauri::Url> {
-    app.state::<OpenedUrls>().0.lock().unwrap().clone()
+fn opened_urls() -> Vec<tauri::Url> {
+    opened_urls_lock().lock().unwrap().clone()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,7 +23,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .manage(OpenedUrls(Mutex::new(vec![])))
         .invoke_handler(tauri::generate_handler![opened_urls])
         .setup(|app| {
             // macOS 自定义菜单：绑定快捷键并通过事件通知前端
@@ -90,11 +96,7 @@ pub fn run() {
             #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
             if let tauri::RunEvent::Opened { urls } = event {
                 use tauri::Emitter;
-                app.state::<OpenedUrls>()
-                    .0
-                    .lock()
-                    .unwrap()
-                    .extend(urls.clone());
+                opened_urls_lock().lock().unwrap().extend(urls.clone());
                 let _ = app.emit("opened", urls);
             }
             #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
