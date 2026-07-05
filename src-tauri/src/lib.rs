@@ -32,12 +32,25 @@ pub fn run() {
             let save_item = MenuItemBuilder::with_id("save", "Save")
                 .accelerator("CmdOrCtrl+S")
                 .build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit")
+                .accelerator("CmdOrCtrl+Q")
+                .build(app)?;
+            let minimize_item = MenuItemBuilder::with_id("minimize", "Minimize")
+                .accelerator("CmdOrCtrl+M")
+                .build(app)?;
+            let hide_item = MenuItemBuilder::with_id("hide", "Hide")
+                .accelerator("CmdOrCtrl+H")
+                .build(app)?;
 
             let file_menu = SubmenuBuilder::new(app, "File")
                 .item(&new_item)
                 .item(&open_item)
                 .item(&open_url_item)
                 .item(&save_item)
+                .separator()
+                .item(&minimize_item)
+                .item(&hide_item)
+                .item(&quit_item)
                 .build()?;
 
             let menu = MenuBuilder::new(app)
@@ -47,16 +60,26 @@ pub fn run() {
             app.set_menu(menu)?;
 
             let app_handle = app.handle().clone();
-            app.on_menu_event(move |_app, event| {
+            app.on_menu_event(move |app, event| {
                 use tauri::Emitter;
-                let event_name = match event.id().0.as_str() {
-                    "new" => "menu:new",
-                    "open" => "menu:open",
-                    "open_url" => "menu:open_url",
-                    "save" => "menu:save",
-                    _ => return,
-                };
-                let _ = app_handle.emit(event_name, ());
+                match event.id().0.as_str() {
+                    "new" => { let _ = app_handle.emit("menu:new", ()); }
+                    "open" => { let _ = app_handle.emit("menu:open", ()); }
+                    "open_url" => { let _ = app_handle.emit("menu:open_url", ()); }
+                    "save" => { let _ = app_handle.emit("menu:save", ()); }
+                    "minimize" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.minimize();
+                        }
+                    }
+                    "hide" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.hide();
+                        }
+                    }
+                    "quit" => { app.exit(0); }
+                    _ => {}
+                }
             });
 
             Ok(())
