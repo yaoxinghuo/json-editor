@@ -12,8 +12,16 @@ fn opened_urls_lock() -> &'static Mutex<Vec<tauri::Url>> {
 }
 
 #[tauri::command]
-fn opened_urls() -> Vec<tauri::Url> {
-    opened_urls_lock().lock().unwrap().clone()
+fn opened_urls(app: tauri::AppHandle) -> Vec<tauri::Url> {
+    use tauri_plugin_fs::FsExt;
+    let urls = opened_urls_lock().lock().unwrap().clone();
+    // 授权前端读取这些文件（冷启动时 fs_scope 可能还没初始化，这里补授权）
+    for url in &urls {
+        if let Ok(path) = url.to_file_path() {
+            let _ = app.fs_scope().allow_file(&path);
+        }
+    }
+    urls
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -96,7 +104,14 @@ pub fn run() {
             #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
             if let tauri::RunEvent::Opened { urls } = event {
                 use tauri::Emitter;
+                use tauri_plugin_fs::FsExt;
                 opened_urls_lock().lock().unwrap().extend(urls.clone());
+                // 授权前端读取这些文件
+                for url in &urls {
+                    if let Ok(path) = url.to_file_path() {
+                        let _ = app.fs_scope().allow_file(&path);
+                    }
+                }
                 let _ = app.emit("opened", urls);
             }
             #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
