@@ -121,16 +121,16 @@ async function loadFileFromUrl(url: string) {
   fileLoaded = true
   try {
     const path = fileUrlToPath(url)
-    debugLog(`[file-association] loading file: ${path}`)
+    console.log('[file-association] loading file:', path)
     const content = await readTextFile(path)
     leftContent.value = content
     fileName.value = path.split('/').pop() || 'untitled.json'
     // 确保 editor 已初始化并同步内容
     await nextTick()
     leftEditorRef.value?.setText(content)
-    debugLog(`[file-association] file loaded successfully, ${content.length} chars`)
+    console.log('[file-association] file loaded successfully')
   } catch (e) {
-    debugLog(`[file-association] ERROR: ${e}`)
+    console.error('[file-association] ERROR:', e)
     fileLoaded = false
   }
 }
@@ -139,32 +139,26 @@ let fileLoaded = false
 
 async function setupFileAssociation() {
   try {
-    debugLog('[file-association] setup started')
     // 先注册 listener，防止 RunEvent::Opened 事件被错过
     const unlisten = await listen<string[]>('opened', (event) => {
-      debugLog(`[file-association] opened event: ${JSON.stringify(event.payload)}`)
+      console.log('[file-association] opened event:', event.payload)
       if (event.payload && event.payload.length > 0) {
         loadFileFromUrl(event.payload[0])
       }
     })
     unlistenFns.push(unlisten)
-    debugLog('[file-association] listener registered')
 
-    // 冷启动：RunEvent::Opened 可能在 app 启动后延迟触发
-    // 轮询 opened_urls，覆盖不同时序
-    for (let i = 0; i < 10; i++) {
-      if (fileLoaded) break
-      await new Promise(resolve => setTimeout(resolve, 200))
-      const urls = await invoke<string[]>('opened_urls')
-      debugLog(`[file-association] poll #${i} URLs: ${JSON.stringify(urls)}`)
-      if (urls.length > 0) {
-        await loadFileFromUrl(urls[0])
-        break
-      }
+    // 等待子组件 editor 初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // 冷启动：RunEvent::Opened 在 app 启动前已触发，URL 已存储在 Rust 全局变量中
+    const urls = await invoke<string[]>('opened_urls')
+    console.log('[file-association] initial URLs:', urls)
+    if (urls.length > 0) {
+      await loadFileFromUrl(urls[0])
     }
-    debugLog('[file-association] setup done')
   } catch (e) {
-    debugLog(`[file-association] setup failed: ${e}`)
+    console.log('[file-association] setup failed (expected in browser):', e)
   }
 }
 
@@ -301,14 +295,6 @@ function copyRightToLeft() {
 // 拖放文件高亮状态（由 Tauri onDragDropEvent 驱动）
 const dragOverLeft = ref(false)
 const dragOverRight = ref(false)
-
-// 临时调试面板
-const debugLogs = ref<string[]>([])
-function debugLog(msg: string) {
-  const line = `[${new Date().toLocaleTimeString()}] ${msg}`
-  debugLogs.value.push(line)
-  console.log(msg)
-}
 </script>
 
 <template>
@@ -402,14 +388,6 @@ function debugLog(msg: string) {
       @close="showOpenUrlModal = false"
       @load="handleUrlLoaded"
     />
-
-    <!-- 临时调试面板 -->
-    <div class="debug-panel" v-if="debugLogs.length > 0">
-      <div class="debug-header">File Association Debug (temporary)</div>
-      <div class="debug-content">
-        <div v-for="(log, i) in debugLogs" :key="i" class="debug-line">{{ log }}</div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -723,37 +701,5 @@ body {
 
 :root[data-theme="dark"] .jse-status-bar {
   border-bottom-color: #3c3c3c !important;
-}
-
-/* 临时调试面板样式 */
-.debug-panel {
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  width: 500px;
-  max-height: 300px;
-  background: rgba(0, 0, 0, 0.85);
-  color: #0f0;
-  font-family: monospace;
-  font-size: 11px;
-  z-index: 99999;
-  border-radius: 8px 0 0 0;
-  overflow: hidden;
-}
-.debug-header {
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  font-weight: bold;
-  color: #ff0;
-}
-.debug-content {
-  max-height: 280px;
-  overflow-y: auto;
-  padding: 4px 8px;
-}
-.debug-line {
-  padding: 1px 0;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 </style>
