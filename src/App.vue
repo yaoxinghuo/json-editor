@@ -27,7 +27,33 @@ const showOpenUrlModal = ref(false)
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
   setupFileAssociation()
+  setupKeyboardShortcuts()
 })
+
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey
+    if (!mod) return
+    switch (e.key.toLowerCase()) {
+      case 's':
+        e.preventDefault()
+        handleSave()
+        break
+      case 'n':
+        e.preventDefault()
+        handleNew()
+        break
+      case 'o':
+        e.preventDefault()
+        if (e.shiftKey) {
+          handleOpenUrl()
+        } else {
+          handleOpen()
+        }
+        break
+    }
+  })
+}
 
 // 处理通过文件关联打开的 JSON 文件
 function fileUrlToPath(url: string): string {
