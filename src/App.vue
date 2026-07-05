@@ -225,6 +225,44 @@ function copyLeftToRight() {
 function copyRightToLeft() {
   leftContent.value = rightContent.value
 }
+
+// 拖放文件支持
+const dragOverLeft = ref(false)
+const dragOverRight = ref(false)
+
+function onDragOver(e: DragEvent, side: 'left' | 'right') {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  if (side === 'left') dragOverLeft.value = true
+  else dragOverRight.value = true
+}
+
+function onDragLeave(side: 'left' | 'right') {
+  if (side === 'left') dragOverLeft.value = false
+  else dragOverRight.value = false
+}
+
+async function onDrop(e: DragEvent, side: 'left' | 'right') {
+  e.preventDefault()
+  if (side === 'left') dragOverLeft.value = false
+  else dragOverRight.value = false
+
+  const files = e.dataTransfer?.files
+  if (!files || files.length === 0) return
+
+  const file = files[0]
+  const text = await file.text()
+  if (side === 'left') {
+    leftContent.value = text
+    fileName.value = file.name
+    leftEditorRef.value?.setText(text)
+  } else {
+    rightContent.value = text
+    rightEditorRef.value?.setText(text)
+  }
+}
 </script>
 
 <template>
@@ -247,7 +285,14 @@ function copyRightToLeft() {
       @update:mode="(m) => { leftMode = m; rightMode = m }"
     />
     <div class="editor-split">
-      <div class="editor-section" :style="{ flex: `0 0 calc(${splitRatio * 100}% - ${splitRatio * 40}px)` }">
+      <div
+        class="editor-section"
+        :class="{ 'drag-over': dragOverLeft }"
+        :style="{ flex: `0 0 calc(${splitRatio * 100}% - ${splitRatio * 40}px)` }"
+        @dragover="onDragOver($event, 'left')"
+        @dragleave="onDragLeave('left')"
+        @drop="onDrop($event, 'left')"
+      >
         <div class="panel-header">
           <span class="panel-title">{{ fileName }}</span>
           <div class="panel-status">
@@ -282,7 +327,14 @@ function copyRightToLeft() {
           <svg class="drag-indicator" width="4" height="19" viewBox="0 0 4 19" fill="currentColor"><g transform="translate(-300 -755)"><rect width="2" height="1" transform="translate(300 755)" /><rect width="2" height="1" transform="translate(300 763)" /><rect width="2" height="1" transform="translate(300 757)" /><rect width="2" height="1" transform="translate(300 759)" /><rect width="2" height="1" transform="translate(300 761)" /><rect width="2" height="1" transform="translate(300 765)" /><rect width="2" height="1" transform="translate(300 773)" /><rect width="2" height="1" transform="translate(300 767)" /><rect width="2" height="1" transform="translate(300 769)" /><rect width="2" height="1" transform="translate(300 771)" /><rect width="2" height="1" transform="translate(302 755)" /><rect width="2" height="1" transform="translate(302 763)" /><rect width="2" height="1" transform="translate(302 757)" /><rect width="2" height="1" transform="translate(302 759)" /><rect width="2" height="1" transform="translate(302 761)" /><rect width="2" height="1" transform="translate(302 765)" /><rect width="2" height="1" transform="translate(302 773)" /><rect width="2" height="1" transform="translate(302 767)" /><rect width="2" height="1" transform="translate(302 769)" /><rect width="2" height="1" transform="translate(302 771)" /></g></svg>
         </div>
       </div>
-      <div class="editor-section" :style="{ flex: `0 0 calc(${(1 - splitRatio) * 100}% - ${(1 - splitRatio) * 40}px)` }">
+      <div
+        class="editor-section"
+        :class="{ 'drag-over': dragOverRight }"
+        :style="{ flex: `0 0 calc(${(1 - splitRatio) * 100}% - ${(1 - splitRatio) * 40}px)` }"
+        @dragover="onDragOver($event, 'right')"
+        @dragleave="onDragLeave('right')"
+        @drop="onDrop($event, 'right')"
+      >
         <div class="panel-header">
           <span class="panel-title">Tree View</span>
           <div class="panel-status">
@@ -374,6 +426,13 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+}
+
+.editor-section.drag-over {
+  outline: 2px dashed var(--accent-color, #3b82f6);
+  outline-offset: -2px;
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .panel-header {
