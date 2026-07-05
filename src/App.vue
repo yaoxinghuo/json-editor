@@ -117,30 +117,29 @@ function fileUrlToPath(url: string): string {
 }
 
 async function loadFileFromUrl(url: string) {
+  if (fileLoaded) return
+  fileLoaded = true
   try {
     const path = fileUrlToPath(url)
+    console.log('[file-association] loading file:', path)
     const content = await readTextFile(path)
     leftContent.value = content
     fileName.value = path.split('/').pop() || 'untitled.json'
     // 确保 editor 已初始化并同步内容
     await nextTick()
     leftEditorRef.value?.setText(content)
+    console.log('[file-association] file loaded successfully')
   } catch (e) {
     console.error('Failed to open associated file:', e)
+    fileLoaded = false
   }
 }
 
+let fileLoaded = false
+
 async function setupFileAssociation() {
   try {
-    // 等待子组件 editor 初始化完成
-    await new Promise(resolve => setTimeout(resolve, 100))
-    // 冷启动：文件 URL 可能已在 Rust 状态中
-    const initialUrls = await invoke<string[]>('opened_urls')
-    console.log('[file-association] initial URLs:', initialUrls)
-    if (initialUrls.length > 0) {
-      await loadFileFromUrl(initialUrls[0])
-    }
-    // 热启动：监听 opened 事件
+    // 先注册 listener，防止冷启动时 RunEvent::Opened 事件被错过
     const unlisten = await listen<string[]>('opened', (event) => {
       console.log('[file-association] opened event:', event.payload)
       if (event.payload && event.payload.length > 0) {
@@ -148,6 +147,16 @@ async function setupFileAssociation() {
       }
     })
     unlistenFns.push(unlisten)
+
+    // 等待子组件 editor 初始化完成
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // 冷启动：文件 URL 可能已在 Rust 状态中（事件可能在 listener 注册前就发出了）
+    const initialUrls = await invoke<string[]>('opened_urls')
+    console.log('[file-association] initial URLs:', initialUrls)
+    if (initialUrls.length > 0) {
+      await loadFileFromUrl(initialUrls[0])
+    }
   } catch (e) {
     console.log('[file-association] setup failed (expected in browser):', e)
   }
@@ -188,6 +197,7 @@ function startDrag(e: MouseEvent) {
 function handleNew() {
   leftContent.value = '{}'
   fileName.value = 'untitled.json'
+  fileLoaded = false
 }
 
 async function handleOpen() {
@@ -196,6 +206,7 @@ async function handleOpen() {
     if (result) {
       leftContent.value = result.content
       fileName.value = result.path.split('/').pop() || 'untitled.json'
+      fileLoaded = false
     }
   } catch (e) {
     console.error('Failed to open file:', e)
