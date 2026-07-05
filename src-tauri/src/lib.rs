@@ -1,3 +1,13 @@
+use std::sync::Mutex;
+use tauri::Manager;
+
+struct OpenedUrls(Mutex<Vec<tauri::Url>>);
+
+#[tauri::command]
+fn opened_urls(app: tauri::AppHandle) -> Vec<tauri::Url> {
+    app.state::<OpenedUrls>().0.lock().unwrap().clone()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -5,6 +15,19 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .manage(OpenedUrls(Mutex::new(vec![])))
+        .invoke_handler(tauri::generate_handler![opened_urls])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Opened { urls } = event {
+                use tauri::Emitter;
+                app.state::<OpenedUrls>()
+                    .0
+                    .lock()
+                    .unwrap()
+                    .extend(urls.clone());
+                let _ = app.emit("opened", urls);
+            }
+        });
 }

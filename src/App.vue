@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
+import { readTextFile } from '@tauri-apps/plugin-fs'
 import JsonEditorPanel from './components/JsonEditorPanel.vue'
 import Toolbar from './components/Toolbar.vue'
 import OpenUrlModal from './components/OpenUrlModal.vue'
@@ -23,7 +26,46 @@ const showOpenUrlModal = ref(false)
 
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
+  setupFileAssociation()
 })
+
+// 处理通过文件关联打开的 JSON 文件
+function fileUrlToPath(url: string): string {
+  // file:// URL 转为文件路径
+  if (url.startsWith('file://')) {
+    return decodeURIComponent(url.slice(7))
+  }
+  return url
+}
+
+async function loadFileFromUrl(url: string) {
+  try {
+    const path = fileUrlToPath(url)
+    const content = await readTextFile(path)
+    leftContent.value = content
+    fileName.value = path.split('/').pop() || 'untitled.json'
+  } catch (e) {
+    console.error('Failed to open associated file:', e)
+  }
+}
+
+async function setupFileAssociation() {
+  try {
+    // 冷启动：文件 URL 可能已在 Rust 状态中
+    const initialUrls = await invoke<string[]>('opened_urls')
+    if (initialUrls.length > 0) {
+      await loadFileFromUrl(initialUrls[0])
+    }
+    // 热启动：监听 opened 事件
+    await listen<string[]>('opened', (event) => {
+      if (event.payload && event.payload.length > 0) {
+        loadFileFromUrl(event.payload[0])
+      }
+    })
+  } catch (e) {
+    // 非 Tauri 环境（如浏览器开发模式）会失败，忽略即可
+  }
+}
 
 const leftValidation = computed(() => validateJson(leftContent.value))
 const leftNodeCount = computed(() => countJsonNodes(leftContent.value))
