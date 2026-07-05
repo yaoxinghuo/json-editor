@@ -139,7 +139,7 @@ let fileLoaded = false
 
 async function setupFileAssociation() {
   try {
-    // 先注册 listener，防止冷启动时 RunEvent::Opened 事件被错过
+    // 先注册 listener，防止 RunEvent::Opened 事件被错过
     const unlisten = await listen<string[]>('opened', (event) => {
       console.log('[file-association] opened event:', event.payload)
       if (event.payload && event.payload.length > 0) {
@@ -148,14 +148,17 @@ async function setupFileAssociation() {
     })
     unlistenFns.push(unlisten)
 
-    // 等待子组件 editor 初始化完成
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    // 冷启动：文件 URL 可能已在 Rust 状态中（事件可能在 listener 注册前就发出了）
-    const initialUrls = await invoke<string[]>('opened_urls')
-    console.log('[file-association] initial URLs:', initialUrls)
-    if (initialUrls.length > 0) {
-      await loadFileFromUrl(initialUrls[0])
+    // 冷启动：RunEvent::Opened 可能在 app 启动后延迟触发
+    // 轮询 opened_urls，覆盖不同时序
+    for (let i = 0; i < 10; i++) {
+      if (fileLoaded) break
+      await new Promise(resolve => setTimeout(resolve, 200))
+      const urls = await invoke<string[]>('opened_urls')
+      console.log(`[file-association] poll #${i} URLs:`, urls)
+      if (urls.length > 0) {
+        await loadFileFromUrl(urls[0])
+        break
+      }
     }
   } catch (e) {
     console.log('[file-association] setup failed (expected in browser):', e)
