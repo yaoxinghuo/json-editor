@@ -29,6 +29,11 @@ const showAbout = ref(false)
 
 const PROJECT_URL = 'https://github.com/yaoxinghuo/json-editor'
 
+// macOS 用 ⌘/⇧ 符号，其他平台用 Ctrl/Shift
+const isMac = navigator.userAgent.includes('Mac')
+const modKey = isMac ? '⌘' : 'Ctrl'
+const shiftKey = isMac ? '⇧' : 'Shift'
+
 function toggleOpenMenu() {
   showOpenMenu.value = !showOpenMenu.value
 }
@@ -60,7 +65,7 @@ onUnmounted(() => {
   <div class="toolbar">
     <div class="toolbar-left">
       <img class="app-logo" src="../assets/json-editor.svg" alt="JsonEditor" />
-      <button class="btn btn-icon" title="New (Ctrl/Cmd+N)" @click="emit('new')">
+      <button class="btn btn-icon" :title="`New (${modKey}N)`" @click="emit('new')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
@@ -83,7 +88,7 @@ onUnmounted(() => {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
             <span>Open File</span>
-            <span class="shortcut-hint">Ctrl/Cmd+O</span>
+            <span class="shortcut-hint">{{ modKey }}O</span>
           </button>
           <button class="dropdown-item" @click="() => { closeOpenMenu(); emit('openUrl') }">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,11 +97,11 @@ onUnmounted(() => {
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
             </svg>
             <span>Open from URL</span>
-            <span class="shortcut-hint">Ctrl/Cmd+Shift+O</span>
+            <span class="shortcut-hint">{{ modKey }}{{ shiftKey }}O</span>
           </button>
         </div>
       </div>
-      <button class="btn btn-icon" title="Save File (Ctrl/Cmd+S)" @click="emit('save')">
+      <button class="btn btn-icon" :title="`Save File (${modKey}S)`" @click="emit('save')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
           <polyline points="17 21 17 13 7 13 7 21" />
@@ -313,7 +318,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  min-width: 180px;
+  min-width: 220px;
   z-index: 100;
   padding: 4px;
 }
@@ -324,6 +329,7 @@ onUnmounted(() => {
   gap: 8px;
   width: 100%;
   padding: 8px 12px;
+  white-space: nowrap;
   border: none;
   border-radius: 6px;
   background: transparent;

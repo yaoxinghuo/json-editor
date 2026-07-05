@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { readTextFile } from '@tauri-apps/plugin-fs'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import JsonEditorPanel from './components/JsonEditorPanel.vue'
 import Toolbar from './components/Toolbar.vue'
 import OpenUrlModal from './components/OpenUrlModal.vue'
@@ -24,35 +25,86 @@ const leftEditorRef = ref<InstanceType<typeof JsonEditorPanel>>()
 const rightEditorRef = ref<InstanceType<typeof JsonEditorPanel>>()
 const showOpenUrlModal = ref(false)
 
+const unlistenFns: (() => void)[] = []
+
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
   setupFileAssociation()
-  setupKeyboardShortcuts()
+  setupMenuShortcuts()
+  setupDragDrop()
 })
 
-function setupKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    const mod = e.metaKey || e.ctrlKey
-    if (!mod) return
-    switch (e.key.toLowerCase()) {
-      case 's':
-        e.preventDefault()
-        handleSave()
-        break
-      case 'n':
-        e.preventDefault()
-        handleNew()
-        break
-      case 'o':
-        e.preventDefault()
-        if (e.shiftKey) {
-          handleOpenUrl()
-        } else {
-          handleOpen()
-        }
-        break
+onBeforeUnmount(() => {
+  unlistenFns.forEach(fn => fn())
+})
+
+async function setupMenuShortcuts() {
+  try {
+    const handlers: Record<string, () => void> = {
+      'menu:new': handleNew,
+      'menu:open': handleOpen,
+      'menu:open_url': handleOpenUrl,
+      'menu:save': handleSave,
     }
-  })
+    for (const [eventName, handler] of Object.entries(handlers)) {
+      const unlisten = await listen(eventName, () => handler())
+      unlistenFns.push(unlisten)
+    }
+  } catch (e) {
+    // 非 Tauri 环境忽略
+  }
+}
+
+async function setupDragDrop() {
+  try {
+    const unlisten = await getCurrentWebview().onDragDropEvent((event) => {
+      const payload = event.payload
+      if (payload.type === 'over') {
+        // 根据鼠标 x 坐标判断落在左侧还是右侧
+        const container = document.querySelector('.editor-split') as HTMLElement
+        if (container) {
+          const rect = container.getBoundingClientRect()
+          const isLeft = payload.position.x < rect.left + rect.width * splitRatio.value
+          dragOverLeft.value = isLeft
+          dragOverRight.value = !isLeft
+        }
+      } else if (payload.type === 'drop') {
+        dragOverLeft.value = false
+        dragOverRight.value = false
+        if (payload.paths.length > 0) {
+          const container = document.querySelector('.editor-split') as HTMLElement
+          const isLeft = container
+            ? payload.position.x < container.getBoundingClientRect().left + container.getBoundingClientRect().width * splitRatio.value
+            : true
+          loadDroppedFile(payload.paths[0], isLeft ? 'left' : 'right')
+        }
+      } else {
+        dragOverLeft.value = false
+        dragOverRight.value = false
+      }
+    })
+    unlistenFns.push(unlisten)
+  } catch (e) {
+    // 非 Tauri 环境忽略
+  }
+}
+
+async function loadDroppedFile(path: string, side: 'left' | 'right') {
+  try {
+    const content = await readTextFile(path)
+    if (side === 'left') {
+      leftContent.value = content
+      fileName.value = path.split('/').pop() || 'untitled.json'
+      await nextTick()
+      leftEditorRef.value?.setText(content)
+    } else {
+      rightContent.value = content
+      await nextTick()
+      rightEditorRef.value?.setText(content)
+    }
+  } catch (e) {
+    console.error('Failed to load dropped file:', e)
+  }
 }
 
 // 处理通过文件关联打开的 JSON 文件
@@ -84,17 +136,20 @@ async function setupFileAssociation() {
     await new Promise(resolve => setTimeout(resolve, 100))
     // 冷启动：文件 URL 可能已在 Rust 状态中
     const initialUrls = await invoke<string[]>('opened_urls')
+    console.log('[file-association] initial URLs:', initialUrls)
     if (initialUrls.length > 0) {
       await loadFileFromUrl(initialUrls[0])
     }
     // 热启动：监听 opened 事件
-    await listen<string[]>('opened', (event) => {
+    const unlisten = await listen<string[]>('opened', (event) => {
+      console.log('[file-association] opened event:', event.payload)
       if (event.payload && event.payload.length > 0) {
         loadFileFromUrl(event.payload[0])
       }
     })
+    unlistenFns.push(unlisten)
   } catch (e) {
-    // 非 Tauri 环境（如浏览器开发模式）会失败，忽略即可
+    console.log('[file-association] setup failed (expected in browser):', e)
   }
 }
 
@@ -226,43 +281,9 @@ function copyRightToLeft() {
   leftContent.value = rightContent.value
 }
 
-// 拖放文件支持
+// 拖放文件高亮状态（由 Tauri onDragDropEvent 驱动）
 const dragOverLeft = ref(false)
 const dragOverRight = ref(false)
-
-function onDragOver(e: DragEvent, side: 'left' | 'right') {
-  e.preventDefault()
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = 'copy'
-  }
-  if (side === 'left') dragOverLeft.value = true
-  else dragOverRight.value = true
-}
-
-function onDragLeave(side: 'left' | 'right') {
-  if (side === 'left') dragOverLeft.value = false
-  else dragOverRight.value = false
-}
-
-async function onDrop(e: DragEvent, side: 'left' | 'right') {
-  e.preventDefault()
-  if (side === 'left') dragOverLeft.value = false
-  else dragOverRight.value = false
-
-  const files = e.dataTransfer?.files
-  if (!files || files.length === 0) return
-
-  const file = files[0]
-  const text = await file.text()
-  if (side === 'left') {
-    leftContent.value = text
-    fileName.value = file.name
-    leftEditorRef.value?.setText(text)
-  } else {
-    rightContent.value = text
-    rightEditorRef.value?.setText(text)
-  }
-}
 </script>
 
 <template>
@@ -289,9 +310,6 @@ async function onDrop(e: DragEvent, side: 'left' | 'right') {
         class="editor-section"
         :class="{ 'drag-over': dragOverLeft }"
         :style="{ flex: `0 0 calc(${splitRatio * 100}% - ${splitRatio * 40}px)` }"
-        @dragover="onDragOver($event, 'left')"
-        @dragleave="onDragLeave('left')"
-        @drop="onDrop($event, 'left')"
       >
         <div class="panel-header">
           <span class="panel-title">{{ fileName }}</span>
@@ -331,9 +349,6 @@ async function onDrop(e: DragEvent, side: 'left' | 'right') {
         class="editor-section"
         :class="{ 'drag-over': dragOverRight }"
         :style="{ flex: `0 0 calc(${(1 - splitRatio) * 100}% - ${(1 - splitRatio) * 40}px)` }"
-        @dragover="onDragOver($event, 'right')"
-        @dragleave="onDragLeave('right')"
-        @drop="onDrop($event, 'right')"
       >
         <div class="panel-header">
           <span class="panel-title">Tree View</span>
