@@ -20,6 +20,7 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
             if let tauri::RunEvent::Opened { urls } = event {
                 use tauri::Emitter;
                 app.state::<OpenedUrls>()
@@ -28,6 +29,10 @@ pub fn run() {
                     .unwrap()
                     .extend(urls.clone());
                 let _ = app.emit("opened", urls);
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+            {
+                let _ = (app, event);
             }
         });
 }
