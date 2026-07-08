@@ -67,8 +67,31 @@ pub fn run() {
                 .item(&quit_item)
                 .build()?;
 
+            // Edit 菜单：恢复 macOS 默认的编辑快捷键（Cmd+C/V/X/A）
+            // 使用预定义 id，Tauri 会在 webview 中执行对应编辑操作
+            let cut_item = MenuItemBuilder::with_id("cut", "Cut")
+                .accelerator("CmdOrCtrl+X")
+                .build(app)?;
+            let copy_item = MenuItemBuilder::with_id("copy", "Copy")
+                .accelerator("CmdOrCtrl+C")
+                .build(app)?;
+            let paste_item = MenuItemBuilder::with_id("paste", "Paste")
+                .accelerator("CmdOrCtrl+V")
+                .build(app)?;
+            let select_all_item = MenuItemBuilder::with_id("select_all", "Select All")
+                .accelerator("CmdOrCtrl+A")
+                .build(app)?;
+
+            let edit_menu = SubmenuBuilder::new(app, "Edit")
+                .item(&cut_item)
+                .item(&copy_item)
+                .item(&paste_item)
+                .item(&select_all_item)
+                .build()?;
+
             let menu = MenuBuilder::new(app)
                 .item(&file_menu)
+                .item(&edit_menu)
                 .build()?;
 
             app.set_menu(menu)?;
