@@ -677,6 +677,17 @@ body {
   color: #d4d4d4;
 }
 
+/* Dark mode: soften the divider between line numbers and editor content */
+:root[data-theme="dark"] .jse-text-mode .jse-contents .cm-editor .cm-gutters {
+  border-right: 1px solid #2a2a2a !important;
+}
+
+/* Dark mode: soften CodeMirror indentation guide lines */
+:root[data-theme="dark"] .jse-text-mode .cm-editor {
+  --indent-marker-bg-color: #303030;
+  --indent-marker-active-bg-color: #3a3a3a;
+}
+
 /* Dark mode: tree mode punctuation/bracket/index color fix */
 :root[data-theme="dark"] .jse-tree-mode .jse-bracket,
 :root[data-theme="dark"] .jse-tree-mode .jse-expand,
