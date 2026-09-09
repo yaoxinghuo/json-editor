@@ -852,9 +852,13 @@ let rightValidationTimer: number | undefined
 
 // Debounce: typing in a big file no longer triggers a full parse + node walk
 // on every keystroke, only once editing settles.
+// 同时触发 debounced 的 session 保存：session 的 watch 只监听 id/path/mode/dirty，
+// 不监听 content，因此 dirty tab 上后续的内容编辑必须在这里补存，否则退出时
+// 若 beforeunload 未可靠触发（Tauri webview 常见），将丢失最新内容。
 watch(leftContent, () => {
   if (leftValidationTimer) window.clearTimeout(leftValidationTimer)
   leftValidationTimer = window.setTimeout(recomputeLeftValidation, 300)
+  scheduleSessionSave()
 }, { flush: 'post' })
 
 watch(rightDraft, () => {
