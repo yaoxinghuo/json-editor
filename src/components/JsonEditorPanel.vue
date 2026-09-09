@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
-import { createJSONEditor, isJSONContent, isTextContent, Mode, stringifyJSONPath, getFocusPath, type MenuItem, type ContextMenuItem, type JSONEditorSelection } from 'vanilla-jsoneditor'
+import { createJSONEditor, isJSONContent, isTextContent, Mode, stringifyJSONPath, getFocusPath, type MenuItem, type ContextMenuItem, type JSONEditorSelection, type RenderContextMenuContext } from 'vanilla-jsoneditor'
 import type { EditorMode, ThemeMode } from '../types'
 import { tryParseJson, getValueByPath, getValueType } from '../utils/json'
 import { translateEditorMenu, t } from '../i18n'
+import MarkdownDialog from './MarkdownDialog.vue'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -33,6 +34,56 @@ const currentSelection = shallowRef<JSONEditorSelection | undefined>(undefined)
 // ---------------------------------------------------------------------------
 const navMenu = ref({ visible: false, x: 0, y: 0, path: '' })
 const navCopied = ref(false)
+
+// ---------------------------------------------------------------------------
+// Markdown preview: right-click a long string value -> render it as Markdown
+// ---------------------------------------------------------------------------
+const MARKDOWN_MIN_LENGTH = 100
+const markdownVisible = ref(false)
+const markdownContent = ref('')
+
+/**
+ * The string value targeted by the context menu, or null when it does not
+ * qualify as a Markdown candidate.
+ *
+ * `context.selection` is authoritative at render time, unlike the reactive
+ * `currentSelection` which can still lag behind the click.
+ * getFocusPath() yields the owning property path for BOTH key selections and
+ * value selections, so right-clicking the key name or the value both work.
+ */
+function stringValueFromContext(context: RenderContextMenuContext): string | null {
+  const sel = context?.selection
+  if (!sel || sel.type === 'text') return null
+  let path: (string | number)[] | undefined
+  try {
+    path = getFocusPath(sel as never) as (string | number)[] | undefined
+  } catch {
+    path = undefined
+  }
+  if (!path || path.length === 0) return null
+  const content = editor.value?.get()
+  if (!isJSONContent(content)) return null
+  const value = getValueByPath(content.json, path)
+  return typeof value === 'string' && value.length > MARKDOWN_MIN_LENGTH ? value : null
+}
+
+/** Appends a "Show Markdown" entry when the right-clicked value qualifies. */
+function buildContextMenu(items: ContextMenuItem[], context: RenderContextMenuContext): ContextMenuItem[] {
+  const translated = translateEditorMenu(items as unknown as MenuItem[]) as unknown as ContextMenuItem[]
+  const value = stringValueFromContext(context)
+  if (!value) return translated
+  const separator: ContextMenuItem = { type: 'separator' }
+  const entry: ContextMenuItem = {
+    type: 'button',
+    text: t('contextMenu.showMarkdown'),
+    title: t('contextMenu.showMarkdown'),
+    onClick: () => {
+      markdownContent.value = value
+      markdownVisible.value = true
+    },
+  }
+  return [...translated, separator, entry]
+}
 
 /** Authoritative path of the current selection (handles multi-selection too). */
 function getSelectionPathArray(): (string | number)[] | null {
@@ -162,7 +213,8 @@ function initEditor() {
       navigationBar: true,
       statusBar: true,
       onRenderMenu: (items: MenuItem[]) => translateEditorMenu(items),
-      onRenderContextMenu: (items: ContextMenuItem[]) => translateEditorMenu(items as any),
+      onRenderContextMenu: (items: ContextMenuItem[], context: RenderContextMenuContext) =>
+        buildContextMenu(items, context),
       onSelect: (selection: JSONEditorSelection | undefined) => {
         currentSelection.value = selection
         emit('selection-change', getSelectedType())
@@ -320,6 +372,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="json-editor-panel" :class="`theme-${theme}`">
     <div ref="containerRef" class="json-editor-container" />
+    <MarkdownDialog v-model:visible="markdownVisible" :content="markdownContent" :theme="theme" />
     <Teleport to="body">
       <div
         v-if="navMenu.visible"
