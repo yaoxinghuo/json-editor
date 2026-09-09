@@ -28,6 +28,7 @@ A lightweight, cross-platform desktop JSON editor built with Tauri, Vue 3, and [
 - **Single-instance mode** — Double-clicking a `.json` file while the app is running opens it in a new tab (or switches to it if already open) instead of launching a second window
 - **Session restore** — Restores your previous session (open tabs, modes, active tab) on startup
 - **Smart copy buttons** — Copy buttons dynamically show "Array" or "Object" based on the current selection type in tree view
+- **Markdown preview** — Right-click long string values (length > 100) to open a rendered Markdown preview with syntax-highlighted code blocks, language labels, per-block copy buttons, and raw copy
 - **JSON utilities** — Format, compact, sort, transform, search, undo/redo (per pane)
 - **Validation & node count** — Real-time JSON validation and node count displayed in each pane header
 - **Auto repair for invalid JSON** — Automatically switches to text mode for invalid JSON to expose vanilla-jsoneditor's built-in "Auto repair" button
