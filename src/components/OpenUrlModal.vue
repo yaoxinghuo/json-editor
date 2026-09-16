@@ -58,13 +58,10 @@ async function handleLoad() {
   }
 }
 
-function handleBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) emit('close')
-}
 </script>
 
 <template>
-  <div class="modal-backdrop" @click="handleBackdropClick">
+  <div class="modal-backdrop">
     <div class="modal">
       <div class="modal-header">
         <h3>{{ t('modal.title') }}</h3>
