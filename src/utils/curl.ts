@@ -7,7 +7,8 @@ export interface ParsedCurl {
 
 /**
  * Parse a curl command into URL, method, headers, and body.
- * Supports common curl flags: -X/--request, -H/--header, -d/--data, --data-raw, --data-binary.
+ * Supports common curl flags: -X/--request, -H/--header, -u/--user, --url,
+ * -d/--data, --data-raw, --data-binary, --data-ascii, --data-urlencode, -G/--get.
  * Tolerates shell-style "#" comment lines and "\" line continuations in pasted input.
  */
 export function parseCurl(input: string): ParsedCurl {
@@ -70,8 +71,9 @@ export function parseCurl(input: string): ParsedCurl {
 
   let url = ''
   let method = 'GET'
+  let useGet = false
   const headers: Record<string, string> = {}
-  let body: string | null = null
+  const dataParts: string[] = []
 
   let j = 0
   while (j < tokens.length) {
@@ -79,6 +81,8 @@ export function parseCurl(input: string): ParsedCurl {
 
     if (tok === '-X' || tok === '--request') {
       method = tokens[++j] || method
+    } else if (tok === '--url') {
+      url = tokens[++j] || url
     } else if (tok === '-H' || tok === '--header') {
       const header = tokens[++j] || ''
       const idx = header.indexOf(':')
@@ -87,16 +91,37 @@ export function parseCurl(input: string): ParsedCurl {
         const val = header.substring(idx + 1).trim()
         headers[key] = val
       }
-    } else if (tok === '-d' || tok === '--data' || tok === '--data-raw' || tok === '--data-binary') {
-      body = tokens[++j] || ''
-      if (method === 'GET') method = 'POST'
+    } else if (tok === '-u' || tok === '--user') {
+      const cred = tokens[++j] || ''
+      if (cred && !headers['Authorization']) headers['Authorization'] = `Basic ${btoa(cred)}`
+    } else if (tok === '-d' || tok === '--data' || tok === '--data-raw' ||
+               tok === '--data-binary' || tok === '--data-ascii') {
+      dataParts.push(tokens[++j] ?? '')
+    } else if (tok === '--data-urlencode') {
+      // curl rules: "name=content" encodes only content; "=content"/"content" encode the value
+      const arg = tokens[++j] ?? ''
+      const eq = arg.indexOf('=')
+      dataParts.push(eq > 0
+        ? arg.slice(0, eq + 1) + encodeURIComponent(arg.slice(eq + 1))
+        : encodeURIComponent(eq === 0 ? arg.slice(1) : arg))
+    } else if (tok === '-G' || tok === '--get') {
+      useGet = true
+    } else if (tok === '-I' || tok === '--head') {
+      method = 'HEAD'
     } else if (tok === '-o' || tok === '--output' || tok === '-O' || tok === '--remote-name') {
       // Skip output file args
       if (tok !== '-O' && tok !== '--remote-name') j++
     } else if (tok === '-s' || tok === '--silent' || tok === '-S' || tok === '--show-error' ||
                tok === '-L' || tok === '--location' || tok === '-k' || tok === '--insecure' ||
-               tok === '-i' || tok === '--include' || tok === '-I' || tok === '--head' ||
-               tok === '--compressed' || tok === '-v' || tok === '--verbose') {
+               tok === '-i' || tok === '--include' || tok === '--compressed' ||
+               tok === '-v' || tok === '--verbose' || tok === '-f' || tok === '--fail' ||
+               tok === '-g' || tok === '--globoff' || tok === '-n' || tok === '--netrc' ||
+               tok === '-N' || tok === '--no-buffer' || tok === '-#' || tok === '--progress-bar' ||
+               tok === '-0' || tok === '--http1.0' || tok === '--http1.1' ||
+               tok === '--http2' || tok === '--http3' || tok === '-1' || tok === '--tlsv1' ||
+               tok === '-4' || tok === '--ipv4' || tok === '-6' || tok === '--ipv6' ||
+               tok === '-J' || tok === '--remote-header-name' || tok === '-R' || tok === '--remote-time' ||
+               tok === '-Z' || tok === '--parallel' || tok === '-B' || tok === '--use-ascii') {
       // Flags without arguments, skip
     } else if (tok.startsWith('-')) {
       // Unknown flag with argument, skip next token
@@ -109,6 +134,17 @@ export function parseCurl(input: string): ParsedCurl {
   }
 
   if (!url) throw new Error('No URL found in curl command')
+
+  let body: string | null = null
+  if (dataParts.length) {
+    if (useGet) {
+      // -G appends data parameters to the query string instead of a request body
+      url += (url.includes('?') ? '&' : '?') + dataParts.join('&')
+    } else {
+      body = dataParts.join('&')
+      if (method === 'GET') method = 'POST'
+    }
+  }
 
   return { url, method, headers, body }
 }
