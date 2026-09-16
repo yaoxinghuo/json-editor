@@ -518,6 +518,7 @@ function handleUrlLoaded(content: string, name: string) {
   }
   leftTabs.value.push(tab)
   activeLeftTabId.value = tab.id
+  showToast(t('toast.urlLoaded') + '：' + name)
 }
 
 async function handleCopy() {
@@ -1186,6 +1187,10 @@ onBeforeUnmount(() => {
                   @selection-change="(t) => leftSelectionType = t"
                   @copied="onNodePathCopied"
                 />
+                <div v-if="!leftValidation.valid && leftValidation.error" class="error-bar">
+                  <span class="error-icon">⚠</span>
+                  <span class="error-text">{{ leftValidation.error }}</span>
+                </div>
               </template>
               <div v-else class="welcome-pane">
                 <img class="welcome-pane-logo" src="./assets/json-editor.svg" alt="JsonEditor" />
@@ -1245,13 +1250,13 @@ onBeforeUnmount(() => {
                 @selection-change="(t) => rightSelectionType = t"
                 @copied="onNodePathCopied"
               />
+              <div v-if="!rightValidation.valid && rightValidation.error" class="error-bar">
+                <span class="error-icon">⚠</span>
+                <span class="error-text">{{ rightValidation.error }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div v-if="!leftValidation.valid && leftValidation.error" class="error-bar">
-        <span class="error-icon">⚠</span>
-        <span class="error-text">{{ leftValidation.error }}</span>
       </div>
       <OpenUrlModal
         v-if="showOpenUrlModal"
@@ -2031,6 +2036,14 @@ body {
 
 .error-icon {
   font-size: 16px;
+  flex-shrink: 0;
+}
+
+.error-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* vanilla-jsoneditor dark theme overrides */
