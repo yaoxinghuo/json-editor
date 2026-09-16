@@ -8,33 +8,42 @@ export interface ParsedCurl {
 /**
  * Parse a curl command into URL, method, headers, and body.
  * Supports common curl flags: -X/--request, -H/--header, -d/--data, --data-raw, --data-binary.
+ * Tolerates shell-style "#" comment lines and "\" line continuations in pasted input.
  */
 export function parseCurl(input: string): ParsedCurl {
   const text = input.trim()
   if (!text) throw new Error('Empty input')
 
-  // Remove leading "curl" keyword if present
-  const cleaned = text.replace(/^curl\s+/, '')
-
-  // Tokenize: handle quoted strings (single and double quotes)
+  // Tokenize: handle quoted strings (single and double quotes),
+  // "#" comments and backslash-newline continuations
   const tokens: string[] = []
   let i = 0
-  while (i < cleaned.length) {
-    // Skip whitespace
-    while (i < cleaned.length && /\s/.test(cleaned[i])) i++
-    if (i >= cleaned.length) break
+  while (i < text.length) {
+    // Skip whitespace, comments (to end of line) and line continuations
+    while (i < text.length) {
+      if (/\s/.test(text[i])) {
+        i++
+      } else if (text[i] === '#') {
+        while (i < text.length && text[i] !== '\n' && text[i] !== '\r') i++
+      } else if (text[i] === '\\' && (text[i + 1] === '\n' || text[i + 1] === '\r')) {
+        i += 2
+      } else {
+        break
+      }
+    }
+    if (i >= text.length) break
 
-    const ch = cleaned[i]
+    const ch = text[i]
     if (ch === "'" || ch === '"') {
       const quote = ch
       i++
       let str = ''
-      while (i < cleaned.length && cleaned[i] !== quote) {
-        if (cleaned[i] === '\\' && i + 1 < cleaned.length) {
-          str += cleaned[i + 1]
+      while (i < text.length && text[i] !== quote) {
+        if (text[i] === '\\' && i + 1 < text.length) {
+          str += text[i + 1]
           i += 2
         } else {
-          str += cleaned[i]
+          str += text[i]
           i++
         }
       }
@@ -42,13 +51,22 @@ export function parseCurl(input: string): ParsedCurl {
       tokens.push(str)
     } else {
       let str = ''
-      while (i < cleaned.length && !/\s/.test(cleaned[i])) {
-        str += cleaned[i]
-        i++
+      while (i < text.length && !/\s/.test(text[i])) {
+        if (text[i] === '\\' && (text[i + 1] === '\n' || text[i + 1] === '\r')) {
+          i += 2 // continuation joins lines mid-token, like a shell
+        } else {
+          str += text[i]
+          i++
+        }
       }
-      tokens.push(str)
+      // A lone "\" is a leftover continuation (e.g. "\  \n"), not a real token
+      if (str !== '\\') tokens.push(str)
     }
   }
+
+  // Drop a leading shell prompt or "curl" keyword (comments may precede it)
+  if (tokens[0] === '$') tokens.shift()
+  if (tokens[0] === 'curl') tokens.shift()
 
   let url = ''
   let method = 'GET'
